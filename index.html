@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/vue@3"></script>
+    <title>挖宝</title>
+    <style>
+      #app {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div v-if="!started">
+        <button @click="start">Start</button>
+      </div>
+      <div v-else>
+        <div>宝藏在{{min}}~{{max}}之间</div>
+        <div>
+          <input v-model="pos" type="number" :max="max-1" :min="min+1" />
+        </div>
+        <div>
+          <button @click="dig">挖</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const { createApp } = Vue;
+
+      createApp({
+        data() {
+          return {
+            started: false,
+            id: "",
+            min: 0,
+            max: 0,
+            pos: 0,
+          };
+        },
+        methods: {
+          start() {
+            fetch("/games/new", { method: "post" })
+              .then((resp) =>
+                resp
+                  .json()
+                  .then((json) => (resp.ok ? json : Promise.reject(json)))
+              )
+              .then((json) => {
+                this.started = true;
+                this.id = json.id;
+                this.min = json.min;
+                this.max = json.max;
+                this.pos = this.min + 1;
+              })
+              .catch((error) => alert(error.message));
+          },
+          dig() {
+            fetch(`/games/${this.id}/dig/${this.pos}`, { method: "post" })
+              .then((resp) =>
+                resp
+                  .json()
+                  .then((json) =>
+                    resp.ok
+                      ? json
+                      : Promise.reject({ status: resp.status, data: json })
+                  )
+              )
+              .then((json) => {
+                // 挖完了
+                if (json.status === 0) {
+                  if (json.win) {
+                    alert("你赢了");
+                  } else {
+                    alert("你输了");
+                  }
+                  this.started = false;
+                } else {
+                  this.min = json.min;
+                  this.max = json.max;
+                  this.pos = this.min + 1;
+                }
+              })
+              .catch((error) => {
+                alert(error.data.message);
+                if (error.status == 404) {
+                  this.started = false;
+                }
+              });
+          },
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>

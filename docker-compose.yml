@@ -1,0 +1,13 @@
+version: '3.9'
+services:
+  miner:
+    image: fissssssh/miner:v1.0.0
+    container_name: miner
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on:
+      - redis
+  redis:
+    image: redis
+    container_name: redis
