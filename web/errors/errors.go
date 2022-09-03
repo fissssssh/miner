@@ -1,4 +1,4 @@
-package web
+package errors
 
 type RequestError struct {
 	Status int

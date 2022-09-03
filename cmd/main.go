@@ -1,15 +1,13 @@
 package main
 
 import (
-	"miner/game"
-	"miner/web/router"
-
-	"github.com/gin-gonic/gin"
+	"miner/config"
+	"miner/db"
+	"miner/web"
 )
 
 func main() {
-	game.Init()
-	r := gin.Default()
-	router.Init(r)
-	r.Run()
+	config.Init()
+	db.Init()
+	web.Init()
 }

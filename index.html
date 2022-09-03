@@ -7,21 +7,47 @@
     <script src="https://unpkg.com/vue@3"></script>
     <title>挖宝</title>
     <style>
+      html,
+      body {
+        color: white;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+
       #app {
+        width: 100%;
+        font-size: 1rem;
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
       }
+
+      .main > * {
+        margin-bottom: 16px;
+      }
+
+      .rank {
+        margin-top: 16px;
+      }
     </style>
   </head>
   <body>
     <div id="app">
-      <div v-if="!started">
-        <button @click="start">Start</button>
+      <h1>挖宝</h1>
+      <div class="main" v-if="!started">
+        <div>
+          <input v-model="name" placeholder="留下您的大名开挖" />
+        </div>
+        <div>
+          <button :disabled="!canStart" @click="start">开挖</button>
+        </div>
       </div>
-      <div v-else>
+      <div class="main" v-else>
         <div>宝藏在{{min}}~{{max}}之间</div>
         <div>
           <input v-model="pos" type="number" :max="max-1" :min="min+1" />
@@ -29,6 +55,26 @@
         <div>
           <button @click="dig">挖</button>
         </div>
+      </div>
+      <div class="rank">
+        <h2>挖王榜</h2>
+        <table v-if="!!rank.length" align="center">
+          <thead>
+            <td>排名</td>
+            <td>时间</td>
+            <td>挖宝人</td>
+            <td>次数</td>
+          </thead>
+          <tbody>
+            <tr v-for="(item,index) in rank" :key="item.name">
+              <td>{{index+1}}</td>
+              <td>{{item.time}}</td>
+              <td>{{item.name}}</td>
+              <td>{{item.count}}</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3 v-else>榜上无人，速来打榜！</h3>
       </div>
     </div>
 
@@ -40,14 +86,50 @@
           return {
             started: false,
             id: "",
+            name: "",
             min: 0,
             max: 0,
             pos: 0,
+            rank: [],
           };
         },
+
+        computed: {
+          canStart: function () {
+            return !!this.name;
+          },
+          canDig: function () {
+            return this.pos > this.min && this.pos < this.max;
+          },
+        },
+
+        mounted() {
+          console.log(1);
+          this.refreshRank();
+        },
+
         methods: {
+          refreshRank() {
+            fetch("/api/rank", { method: "get" })
+              .then((resp) =>
+                resp
+                  .json()
+                  .then((json) => (resp.ok ? json : Promise.reject(json)))
+              )
+              .then(
+                (json) =>
+                  (this.rank = json.map((v) => ({
+                    ...v,
+                    time: new Date(v.time).toLocaleString(),
+                  })))
+              )
+              .catch((error) => alert(error.message));
+          },
+
           start() {
-            fetch("/games/new", { method: "post" })
+            let form = new FormData();
+            form.append("name", this.name);
+            fetch("/api/newgame", { method: "post", body: form })
               .then((resp) =>
                 resp
                   .json()
@@ -62,8 +144,9 @@
               })
               .catch((error) => alert(error.message));
           },
+
           dig() {
-            fetch(`/games/${this.id}/dig/${this.pos}`, { method: "post" })
+            fetch(`/api/games/${this.id}/dig/${this.pos}`, { method: "post" })
               .then((resp) =>
                 resp
                   .json()
@@ -77,10 +160,11 @@
                 // 挖完了
                 if (json.status === 0) {
                   if (json.win) {
-                    alert("你赢了");
+                    alert(`你赢了，挖宝次数为${json.count}次。`);
                   } else {
-                    alert("你输了");
+                    alert(`你输了，宝藏在${json.result}处。`);
                   }
+                  this.refreshRank();
                   this.started = false;
                 } else {
                   this.min = json.min;

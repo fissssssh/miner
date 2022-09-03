@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"miner/db"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
-
-var rdb *redis.Client
 
 type GameStatus uint8
 
@@ -25,16 +23,21 @@ const (
 type Game struct {
 	Id     string `redis:"-"`
 	Result int    `redis:"result"`
+	Count  int    `redis:"count"`
 	Min    int    `redis:"min"`
 	Max    int    `redis:"max"`
+	Name   string `redis:"name"`
 }
 
 func (g *Game) persistence() error {
+	rdb := db.GetRedis()
 	gameKey := fmt.Sprintf("Game:%s", g.Id)
 	ctx := context.Background()
 
 	if _, err := rdb.Pipelined(ctx, func(p redis.Pipeliner) error {
+		p.HSet(ctx, gameKey, "name", g.Name)
 		p.HSet(ctx, gameKey, "result", g.Result)
+		p.HSet(ctx, gameKey, "count", g.Count)
 		p.HSet(ctx, gameKey, "max", g.Max)
 		p.HSet(ctx, gameKey, "min", g.Min)
 		return nil
@@ -48,6 +51,7 @@ func (g *Game) persistence() error {
 }
 
 func (g *Game) Dig(id string, pos int) (GameStatus, bool, error) {
+	g.Count++
 	if pos == g.Result {
 		return StatusFinish, true, nil
 	}
@@ -70,25 +74,16 @@ func (g *Game) Dig(id string, pos int) (GameStatus, bool, error) {
 	return StatusContinue, false, nil
 }
 
-var once sync.Once
-
-func Init() {
-	once.Do(func() {
-		rdb = redis.NewClient(&redis.Options{
-			Addr:     "redis:6379",
-			Password: "",
-			DB:       0,
-		})
-		_, err := rdb.Ping(context.Background()).Result()
-		if err != nil {
-			panic(err)
-		}
-	})
-}
-
-func New(min int, max int) (*Game, error) {
+func New(name string, min int, max int) (*Game, error) {
 	id := strings.ReplaceAll(uuid.New().String(), "-", "")
-	g := Game{Id: id, Min: min, Max: max, Result: rand.Intn(max-1) + 1}
+	rand.Seed(time.Now().UnixMilli())
+	g := Game{
+		Name:   name,
+		Id:     id,
+		Min:    min,
+		Max:    max,
+		Result: rand.Intn(max-1) + 1,
+	}
 
 	err := g.persistence()
 	if err != nil {
@@ -100,6 +95,7 @@ func New(min int, max int) (*Game, error) {
 }
 
 func Get(id string) (*Game, error) {
+	rdb := db.GetRedis()
 	ctx := context.Background()
 	gameKey := fmt.Sprintf("Game:%s", id)
 
@@ -126,6 +122,7 @@ func Get(id string) (*Game, error) {
 }
 
 func Del(id string) {
+	rdb := db.GetRedis()
 	ctx := context.Background()
 	gameKey := fmt.Sprintf("Game:%s", id)
 	rdb.Del(ctx, gameKey)
