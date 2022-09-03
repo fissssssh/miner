@@ -33,6 +33,10 @@ func Init(r *gin.Engine) {
 				c.Error(errors.NewRequestError(400, "玩家名称不可为空"))
 				return
 			}
+			if len(name) > 20 {
+				c.Error(errors.NewRequestError(400, "玩家名称不可超过20个字符"))
+				return
+			}
 			min, max := 1, 100000
 			g, err := game.New(name, min, max)
 			if err != nil {
