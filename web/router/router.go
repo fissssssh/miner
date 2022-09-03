@@ -6,13 +6,14 @@ import (
 	"miner/web/errors"
 	"miner/web/middleware"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 func Init(r *gin.Engine) {
 	r.Use(middleware.ErrorHandler())
-
+	r.Use(middleware.RateLimitMiddleware(time.Second, 5, 5))
 	r.StaticFile("/", "./index.html")
 
 	apiGourp := r.Group("api")

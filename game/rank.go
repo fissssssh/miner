@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"miner/db"
 	"time"
 
@@ -59,7 +60,8 @@ func GetRank(cacheOnly bool) (*[]*Winner, error) {
 	if exists, _ := rdb.Exists(ctx, rankKey).Result(); exists == 1 {
 		if rankJson, _ := rdb.Get(ctx, rankKey).Result(); rankJson != "" {
 			err := json.Unmarshal([]byte(rankJson), &winners)
-			if err != nil {
+			if err == nil {
+				log.Println("get rank cache hit!")
 				return &winners, nil
 			}
 		}

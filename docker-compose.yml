@@ -1,7 +1,7 @@
 version: '3.9'
 services:
   miner:
-    image: fissssssh/miner:v1.1.0
+    image: fissssssh/miner:v1.1.3
     container_name: miner
     ports:
       - "8080:8080"
