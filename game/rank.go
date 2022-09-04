@@ -115,13 +115,11 @@ func GetRank(cacheOnly bool) (*[]*Winner, error) {
 	}
 
 	// 查询到结果写入缓存
-	if len(winners) > 0 {
-		rankJson, err := json.Marshal(&winners)
-		if err != nil {
-			return nil, err
-		}
-		rdb.Set(ctx, rankKey, string(rankJson), 1*time.Hour)
+	rankJson, err := json.Marshal(&winners)
+	if err != nil {
+		return nil, err
 	}
+	rdb.Set(ctx, rankKey, string(rankJson), 1*time.Hour)
 
 	return &winners, nil
 }
