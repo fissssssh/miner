@@ -62,9 +62,13 @@
 
       .treasure-render-item > div {
         border-radius: 0.5rem;
-        width: 2rem;
-        height: 2rem;
+        width: 3rem;
+        height: 3rem;
+        font-size: 0.75rem;
+        color: black;
         background-color: #fff;
+        text-align: center;
+        line-height: 3rem;
         cursor: pointer;
         transition: 0.33s ease-in;
       }
@@ -104,7 +108,11 @@
               :title="n+renderedCount"
               @click="dig(n+renderedCount)"
             >
-              <div></div>
+              <div
+                :style="{fontSize:calcFontSize((n+renderedCount).toString().length)}"
+              >
+                {{n+renderedCount}}
+              </div>
             </div>
           </div>
         </div>
@@ -241,6 +249,7 @@
                 }
               });
           },
+
           treasuresScrollInternal(area) {
             let rootFontSize = getComputedStyle(
               document.documentElement
@@ -248,7 +257,7 @@
             rootFontSize = parseInt(
               rootFontSize.slice(0, rootFontSize.length - 2)
             );
-            let treasureSize = rootFontSize * 3;
+            let treasureSize = rootFontSize * 4;
             let countPerLine = Math.floor(area.clientWidth / treasureSize);
             let line = Math.floor(area.clientHeight / treasureSize + 4);
             let maxRenderCount = countPerLine * line;
@@ -262,6 +271,10 @@
             this.totalHeight =
               Math.ceil((this.max - this.min - 1) / countPerLine) *
               treasureSize;
+          },
+
+          calcFontSize(n) {
+            return -0.19 * n + 1.71 + "rem";
           },
         },
       }).mount("#app");
