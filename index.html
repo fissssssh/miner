@@ -5,6 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://unpkg.com/vue@3"></script>
+    <script src="https://unpkg.com/lodash"></script>
     <title>挖宝</title>
     <style>
       html,
@@ -19,7 +20,6 @@
 
       #app {
         width: 100%;
-        font-size: 1rem;
         position: fixed;
         top: 50%;
         left: 50%;
@@ -33,6 +33,47 @@
 
       .rank {
         margin-top: 16px;
+      }
+
+      .treasure-wrapper {
+        width: 80vw;
+        height: 50vh;
+        margin: 0 auto;
+        position: relative;
+        overflow-y: scroll;
+      }
+
+      .treasure-virtual {
+        position: absolute;
+        width: 100%;
+        z-index: -1;
+      }
+
+      .treasure-render {
+        position: absolute;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      .treasure-render-item {
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        display: inline-block;
+        box-sizing: border-box;
+      }
+
+      .treasure-render-item > div {
+        border-radius: 0.5rem;
+        width: 2rem;
+        height: 2rem;
+        background-color: #fff;
+        cursor: pointer;
+        transition: 0.33s ease-in;
+      }
+
+      .treasure-render-item > div:hover {
+        background-color: red;
       }
     </style>
   </head>
@@ -49,11 +90,26 @@
       </div>
       <div class="main" v-else>
         <div>宝藏在{{min}}~{{max}}之间</div>
-        <div>
-          <input v-model="pos" type="number" :max="max-1" :min="min+1" />
-        </div>
-        <div>
-          <button @click="dig">挖</button>
+        <div
+          class="treasure-wrapper"
+          ref="treasures"
+          @scroll="onTreasuresScroll"
+        >
+          <div
+            class="treasure-virtual"
+            :style="{height:totalHeight+'px'}"
+          ></div>
+          <div class="treasure-render" :style="{top:renderViewOffset+'px'}">
+            <div
+              class="treasure-render-item"
+              v-for="n in renderCount"
+              :key="n+renderedCount"
+              :title="n+renderedCount"
+              @click="dig(n+renderedCount)"
+            >
+              <div></div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="rank">
@@ -88,9 +144,13 @@
             id: "",
             name: "",
             min: 0,
-            max: 0,
-            pos: 0,
+            max: 1000,
             rank: [],
+            totalHeight: 0,
+            renderedCount: 0,
+            renderCount: 0,
+            renderViewOffset: 0,
+            onTreasuresScroll: undefined,
           };
         },
 
@@ -98,14 +158,14 @@
           canStart: function () {
             return !!this.name;
           },
-          canDig: function () {
-            return this.pos > this.min && this.pos < this.max;
-          },
         },
 
         mounted() {
-          console.log(1);
           this.refreshRank();
+          this.onTreasuresScroll = _.throttle((e) => {
+            let area = e.target;
+            this.treasuresScrollInternal(area);
+          }, 50);
         },
 
         methods: {
@@ -140,13 +200,15 @@
                 this.id = json.id;
                 this.min = json.min;
                 this.max = json.max;
-                this.pos = this.min + 1;
+                this.$nextTick(() => {
+                  this.treasuresScrollInternal(this.$refs.treasures);
+                });
               })
               .catch((error) => alert(error.message));
           },
 
-          dig() {
-            fetch(`/api/games/${this.id}/dig/${this.pos}`, { method: "post" })
+          dig(pos) {
+            fetch(`/api/games/${this.id}/dig/${pos}`, { method: "post" })
               .then((resp) =>
                 resp
                   .json()
@@ -169,7 +231,10 @@
                 } else {
                   this.min = json.min;
                   this.max = json.max;
-                  this.pos = this.min + 1;
+                  this.$nextTick(() => {
+                    this.$refs.treasures.scrollTo(0, 0);
+                    this.treasuresScrollInternal(this.$refs.treasures);
+                  });
                 }
               })
               .catch((error) => {
@@ -178,6 +243,28 @@
                   this.started = false;
                 }
               });
+          },
+          treasuresScrollInternal(area) {
+            let rootFontSize = getComputedStyle(
+              document.documentElement
+            ).fontSize;
+            rootFontSize = parseInt(
+              rootFontSize.slice(0, rootFontSize.length - 2)
+            );
+            let treasureSize = rootFontSize * 3;
+            let countPerLine = Math.floor(area.clientWidth / treasureSize);
+            let line = Math.floor(area.clientHeight / treasureSize + 4);
+            let maxRenderCount = countPerLine * line;
+            let renderedLines = Math.floor(area.scrollTop / treasureSize);
+            this.renderedCount = renderedLines * countPerLine + this.min;
+            this.renderViewOffset = renderedLines * treasureSize;
+            this.renderCount = Math.min(
+              this.max - this.renderedCount - 1,
+              maxRenderCount
+            );
+            this.totalHeight =
+              Math.ceil((this.max - this.min - 1) / countPerLine) *
+              treasureSize;
           },
         },
       }).mount("#app");
